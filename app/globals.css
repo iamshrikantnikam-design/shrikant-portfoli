@@ -1,26 +1,543 @@
 @import "tailwindcss";
 
+/*
+  Shrikant portfolio. Light-first palette, Geist typography.
+  Dark-mode CSS variables are kept in case we reintroduce a toggle.
+*/
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  /* Monochrome palette — strict black/white, no hues. */
+  --bg: #ffffff;
+  --fg: #000000;
+  --fg-muted: rgba(0, 0, 0, 0.2);
+  --fg-soft: rgba(0, 0, 0, 0.6);
+  --card: #000000;
+  --stroke: #e5e5e5;
+
+  /* Spacing — 4/8-based scale, used as design-system handles. */
+  --s-4: 4px;   --s-8: 8px;   --s-12: 12px;
+  --s-16: 16px; --s-24: 24px; --s-32: 32px;
+  --s-40: 40px; --s-48: 48px; --s-64: 64px;
+  --s-80: 80px; --s-100: 100px; --s-120: 120px;
+
+  /* Type scale. */
+  --t-96: 96px; --t-56: 56px; --t-40: 40px;
+  --t-36: 36px; --t-24: 24px; --t-18: 18px;
+  --t-16: 16px; --t-14: 14px; --t-13: 13px;
+  --t-12: 12px; --t-11: 11px;
+
+  /* All accents collapsed to monochrome. */
+  --off:     #f5f5f5;
+  --muted:   #6b6b6b;
+  --border:  #e5e5e5;
+  --coral:   #000000;
+  --coral-l: #f5f5f5;
+  --purple:  #000000;
+  --teal:    #000000;
+  --amber:   #000000;
+}
+
+.dark {
+  --bg: #000000;
+  --fg: #ffffff;
+  --fg-muted: rgba(255, 255, 255, 0.2);
+  --fg-soft: rgba(255, 255, 255, 0.6);
+  --card: #111111;
+  --stroke: rgba(255, 255, 255, 0.14);
 }
 
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --color-bg: var(--bg);
+  --color-fg: var(--fg);
+  --color-fg-muted: var(--fg-muted);
+  --color-fg-soft: var(--fg-soft);
+  --color-card: var(--card);
+  --color-stroke: var(--stroke);
+  --font-sans: "SF Pro Display", -apple-system, BlinkMacSystemFont,
+    "Helvetica Neue", Helvetica, Arial, sans-serif;
+  --font-display: "SF Pro Display", -apple-system, BlinkMacSystemFont,
+    "Helvetica Neue", Helvetica, Arial, sans-serif;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+html {
+  scroll-behavior: smooth;
+}
+
+/* Anchored sections clear the sticky nav (~72px) */
+section[id] {
+  scroll-margin-top: 96px;
+}
+
+/* Disable text size adjust for consistent mobile rendering */
+html {
+  -webkit-text-size-adjust: 100%;
+}
+
+html,
+body {
+  color: var(--fg);
+  font-family: var(--font-sans);
+  letter-spacing: -0.02em;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+}
+/* html keeps the page bg; body must be transparent so the .sequin-bg
+   underlay can paint above it. */
+html { background: var(--bg); }
+body { background: transparent; }
+
+/* Apply tightened tracking everywhere, including elements that override
+   typography locally (headings, marquee, contact band, etc.). */
+*, *::before, *::after {
+  letter-spacing: -0.02em;
+}
+
+::selection {
+  background: var(--fg);
+  color: var(--bg);
+}
+
+/*
+  Subtle scroll-driven parallax.
+  Supported in Chromium 115+. Gracefully no-ops elsewhere.
+*/
+@supports (animation-timeline: view()) {
+  .rise-in {
+    animation: rise-in linear both;
+    animation-timeline: view();
+    animation-range: entry 0% entry 25%;
+  }
+
+  .drift-up {
+    animation: drift-up linear both;
+    animation-timeline: view();
+    animation-range: cover;
+  }
+
+  .drift-down {
+    animation: drift-down linear both;
+    animation-timeline: view();
+    animation-range: cover;
+  }
+
+  .hero-parallax {
+    animation: hero-parallax linear both;
+    animation-timeline: scroll(root);
+    animation-range: 0 90vh;
   }
 }
 
-body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+@keyframes rise-in {
+  from {
+    transform: translateY(12px);
+  }
+  to {
+    transform: translateY(0);
+  }
+}
+
+/*
+  Butterfly-out entrance — cards converge at the stage centre at small
+  scale and disperse outward to their absolute positions, staggered.
+  Each card wrapper sets --bf-x / --bf-y / --bf-r as the offset/rotation
+  it animates FROM (i.e. the vector from its final position back to the
+  stage centre, plus a slight inward fold). Animation ends at transform:
+  none so the absolute layout positions take over cleanly. Honours
+  prefers-reduced-motion: skips animation, jumps to final state.
+*/
+@keyframes butterfly-in {
+  0% {
+    transform: translate(var(--bf-x, 0px), var(--bf-y, 0px))
+      scale(0.35)
+      rotate(var(--bf-r, 0deg));
+    opacity: 0;
+  }
+  55% {
+    opacity: 1;
+  }
+  100% {
+    transform: translate(0, 0) scale(1) rotate(0deg);
+    opacity: 1;
+  }
+}
+.butterfly-card {
+  animation: butterfly-in 1.2s cubic-bezier(0.22, 1, 0.36, 1) backwards;
+  will-change: transform, opacity;
+}
+@media (prefers-reduced-motion: reduce) {
+  .butterfly-card {
+    animation: none;
+  }
+}
+
+@keyframes drift-up {
+  from {
+    transform: translateY(18px);
+  }
+  to {
+    transform: translateY(-18px);
+  }
+}
+
+@keyframes drift-down {
+  from {
+    transform: translateY(-10px);
+  }
+  to {
+    transform: translateY(10px);
+  }
+}
+
+/*
+  Continuous left-scrolling marquee. The track contains the content twice
+  (original + aria-hidden duplicate) and slides from 0 → -50% so the seam
+  between the two copies is seamless.
+*/
+.marquee-track {
+  animation: marquee 35s linear infinite;
+  will-change: transform;
+}
+/* Pause on hover so visitors can actually read the announcement. */
+.marquee-track:hover {
+  animation-play-state: paused;
+}
+
+@keyframes marquee {
+  from {
+    transform: translateX(0);
+  }
+  to {
+    transform: translateX(-50%);
+  }
+}
+
+@keyframes hero-parallax {
+  from {
+    transform: translateY(0);
+    opacity: 1;
+  }
+  to {
+    transform: translateY(-32px);
+    opacity: 0.9;
+  }
+}
+
+/* Per-word reveal — flicker-proof:
+   1. Outer .hop-word holds the hover hit area. Padding-top + negative
+      margin extend it 22px above the visible glyph so a 10px lift never
+      pushes it out from under the cursor.
+   2. The trailing space is rendered inside .hop-word, not as a sibling.
+      That means adjacent words' hit boxes butt up against each other
+      with no dead gap — moving across the line stays continuously over
+      one word or another, so there's no in-between frame where every
+      glyph drops at once.
+   3. Inner span is pointer-events:none so the inline glyph (which DOES
+      move) never owns the hover state — the moving target can't make
+      itself escape the cursor. Only the stationary outer box matters. */
+.hop-word {
+  display: inline-block;
+  /* Hit-area padding sized to the bigger lift below (was 22/10). */
+  padding-top: 44px;
+  padding-bottom: 20px;
+  margin-top: -44px;
+  margin-bottom: -20px;
+}
+.hop-word__inner {
+  display: inline-block;
+  pointer-events: none;
+  will-change: transform;
+  text-shadow:
+    0 0 0 rgba(255, 107, 107, 0),
+    0 0 0 rgba(255, 209, 102, 0),
+    0 0 0 rgba(6, 214, 160, 0),
+    0 0 0 rgba(17, 138, 178, 0),
+    0 0 0 rgba(123, 44, 191, 0);
+  transition:
+    transform 520ms cubic-bezier(0.22, 1, 0.36, 1),
+    text-shadow 480ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+.hop-word:hover .hop-word__inner {
+  /* Tighter cascade spacing — layers sit closer to each other so the
+     rainbow stack reads as a stacked shadow rather than a fan. */
+  transform: translateY(-20px);
+  text-shadow:
+    3px 3px 0 #ff6b6b,
+    6px 6px 0 #ffd166,
+    9px 9px 0 #06d6a0,
+    12px 12px 0 #118ab2,
+    15px 15px 0 #7b2cbf;
+}
+
+/* Progressive underline. A 1.5px line that grows from 0 → 100% width
+   left-to-right when its parent <a> is hovered or focused. Painted via
+   a one-axis background gradient so the transition can interpolate
+   `background-size`, which CSS animates smoothly (unlike text-decoration
+   thickness/length, which doesn't animate cross-browser). */
+.cta-progressive-underline {
+  background-image: linear-gradient(currentColor, currentColor);
+  background-position: 0 100%;
+  background-repeat: no-repeat;
+  background-size: 0 1.5px;
+  padding-bottom: 3px;
+  transition: background-size 360ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+a:hover .cta-progressive-underline,
+a:focus-visible .cta-progressive-underline {
+  background-size: 100% 1.5px;
+}
+
+/* Slow rainbow cycle used as the hero cover background. 18s loop keeps
+   the motion ambient — never demanding attention but always alive. */
+@keyframes rainbow-cycle {
+  0%   { background-color: hsl(0,   85%, 70%); }
+  16%  { background-color: hsl(40,  90%, 65%); }
+  33%  { background-color: hsl(120, 65%, 60%); }
+  50%  { background-color: hsl(190, 75%, 60%); }
+  66%  { background-color: hsl(250, 70%, 70%); }
+  83%  { background-color: hsl(310, 75%, 70%); }
+  100% { background-color: hsl(360, 85%, 70%); }
+}
+.rainbow-bg {
+  animation: rainbow-cycle 18s linear infinite;
+}
+@media (prefers-reduced-motion: reduce) {
+  .rainbow-bg { animation: none; background-color: hsl(40, 90%, 70%); }
+}
+
+@keyframes rainbow-text-shift {
+  0%   { background-position: 0% 50%; }
+  50%  { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
+@media (prefers-reduced-motion: reduce) {
+  [style*="rainbow-text-shift"] { animation: none !important; }
+}
+
+/* v2 CTA fill-on-hover with a left-edge bounce.
+
+   The wipe runs left→right (origin: left, scaleX 0→1). Once the fill
+   reaches full coverage the origin snaps to the right side so the next
+   keyframes shrink-and-pop the LEFT edge — which reads as a small
+   bounce *at the left side of the pill* after the wipe completes.
+
+   On unhover, the animation is removed and a plain transition takes
+   the pseudo from scaleX(1) back to scaleX(0) with origin still right,
+   which recedes left→right (the LEFT edge moves toward the right). */
+@keyframes cta-wipe {
+  0%   { transform: scaleX(0);    transform-origin: 0%   50%; }
+  55%  { transform: scaleX(1);    transform-origin: 0%   50%; }
+  56%  { transform: scaleX(1);    transform-origin: 100% 50%; }
+  72%  { transform: scaleX(0.88); transform-origin: 100% 50%; }
+  85%  { transform: scaleX(1.03); transform-origin: 100% 50%; }
+  100% { transform: scaleX(1);    transform-origin: 100% 50%; }
+}
+
+/* ────────────────────────────────────────────────────────────────
+   Mermaid sequin fabric background.
+   Stacks three layers via background-image:
+     1. Bright per-cell highlight (top-left reflection on each sequin)
+     2. Cell mask: transparent disc in the middle, dark ring around
+        — punches a "sequin window" out of each 12×12 cell so the
+        rainbow shows through
+     3. Slow-rotating conic rainbow underneath
+   Plus a hue-shift animation that drifts the rainbow over 30s for the
+   "shimmer" feel of fabric catching light.
+──────────────────────────────────────────────────────────────────── */
+.sequin-bg {
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  background-color: #ffffff;
+  background-image:
+    /* (1) tiny white highlight on top-left of each sequin */
+    radial-gradient(circle at 35% 35%, rgba(255,255,255,0.55) 0.8px, transparent 1.6px),
+    /* (2) dark ring grid — transparent disc center shows the rainbow */
+    radial-gradient(circle at 50% 50%, transparent 4.4px, #06060e 5.4px),
+    /* (3) rainbow conic gradient base */
+    conic-gradient(from 0deg at 50% 50%,
+      #ff0080, #ff5e3a, #ffb84d, #ffe14d, #6bff7a, #4dd0ff, #5d77ff, #b04dff, #ff4dc4, #ff0080);
+  background-size: 12px 12px, 12px 12px, 100% 100%;
+  background-position: 0 0, 0 0, center;
+  animation: sequinShimmer 30s linear infinite;
+}
+@keyframes sequinShimmer {
+  0%   { background-position: 0 0,        0 0,        center; filter: hue-rotate(0deg); }
+  100% { background-position: 0 0,        0 0,        center; filter: hue-rotate(360deg); }
+}
+
+.cta-fill::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  background: var(--fg);
+  transform: scaleX(0);
+  transform-origin: 100% 50%;
+  transition: transform 320ms cubic-bezier(0.65, 0, 0.35, 1);
+}
+.cta-fill:hover::before {
+  animation: cta-wipe 620ms cubic-bezier(0.4, 0.7, 0.4, 1) forwards;
+}
+
+/* v4 — wireframe sketch
+  Skeleton mode (toggle with `K`). Renders the page as a digital
+  wireframe: hairline outlines on every box, text remains legible in a
+  uniform ink colour, images turn into placeholder rectangles with a
+  diagonal cross. Dimensions are layered on top by SkeletonView.
+*/
+body.skeleton-mode {
+  background: #fafafa !important;
+}
+/* Scope to page content — SkeletonView overlay sits outside these. */
+body.skeleton-mode :is(main, header, footer, nav),
+body.skeleton-mode :is(main, header, footer, nav) * {
+  color: #111111 !important;
+  text-shadow: none !important;
+  background-image: none !important;
+  background-color: transparent !important;
+  border-color: rgba(0, 0, 0, 0.6) !important;
+  box-shadow: none !important;
+  fill: #111111 !important;
+  stroke: #111111 !important;
+}
+/* Image / media placeholders: keep the box, drop the pixels, draw a
+   crossed-out rectangle so the slot reads as "media goes here". */
+body.skeleton-mode :is(main, header, footer, nav) :is(img, video, canvas, svg) {
+  opacity: 0 !important;
+}
+body.skeleton-mode :is(main, header, footer, nav)
+  :is(img, video, canvas, svg) {
+  position: relative;
+}
+/* Hairline crosshatched fill for any element that originally carried a
+   coloured background — read as a "filled" region in the sketch. */
+body.skeleton-mode [data-sketch-fill] {
+  background-image: repeating-linear-gradient(
+    -45deg,
+    rgba(0, 0, 0, 0.18) 0,
+    rgba(0, 0, 0, 0.18) 1px,
+    transparent 1px,
+    transparent 6px
+  ) !important;
+}
+
+[data-liquid-glass] {
+  position: relative;
+  isolation: isolate;
+  background: linear-gradient(
+    135deg,
+    rgba(255, 255, 255, 0.55) 0%,
+    rgba(255, 255, 255, 0.25) 55%,
+    rgba(255, 255, 255, 0.4) 100%
+  );
+  -webkit-backdrop-filter: blur(14px) saturate(1.8);
+  backdrop-filter: blur(14px) saturate(1.8);
+  border: none;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.7),
+    inset 0 -1px 0 rgba(0, 0, 0, 0.06),
+    0 1px 2px rgba(0, 0, 0, 0.06),
+    0 8px 24px rgba(0, 0, 0, 0.08);
+  overflow: hidden;
+  transition: background 300ms ease, color 300ms ease;
+}
+[data-liquid-glass]::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: linear-gradient(
+    180deg,
+    rgba(255, 255, 255, 0.6) 0%,
+    rgba(255, 255, 255, 0) 50%
+  );
+  pointer-events: none;
+  z-index: -1;
+}
+[data-liquid-glass]::after {
+  content: "";
+  position: absolute;
+  top: -60%;
+  left: -30%;
+  width: 60%;
+  height: 220%;
+  background: linear-gradient(
+    115deg,
+    rgba(255, 255, 255, 0) 30%,
+    rgba(255, 255, 255, 0.55) 50%,
+    rgba(255, 255, 255, 0) 70%
+  );
+  transform: translateX(-120%) rotate(8deg);
+  transition: transform 700ms cubic-bezier(0.2, 0, 0, 1);
+  pointer-events: none;
+}
+[data-liquid-glass]:hover {
+  background: linear-gradient(
+    135deg,
+    rgba(0, 0, 0, 0.85) 0%,
+    rgba(0, 0, 0, 0.7) 100%
+  );
+  color: #fff !important;
+}
+[data-liquid-glass]:hover::after {
+  transform: translateX(360%) rotate(8deg);
+}
+
+[data-sysrow],
+[data-frame] {
+  padding: 8px !important;
+  border-radius: 24px !important;
+}
+[data-sysrow] {
+  transition: transform 180ms cubic-bezier(0.2, 0, 0, 1),
+    box-shadow 180ms cubic-bezier(0.2, 0, 0, 1),
+    border-color 180ms ease-out;
+  will-change: transform;
+}
+[data-sysrow]:hover {
+  transform: translateY(-3px) scale(1.015);
+  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.08);
+  border-color: rgba(0, 0, 0, 0.25);
+}
+@keyframes sysrow-pop {
+  0% {
+    transform: translateY(0) scale(1);
+  }
+  45% {
+    transform: translateY(-5px) scale(1.025);
+  }
+  100% {
+    transform: translateY(-3px) scale(1.015);
+  }
+}
+@media (hover: hover) {
+  [data-sysrow]:hover {
+    animation: sysrow-pop 220ms cubic-bezier(0.2, 0, 0, 1);
+    animation-fill-mode: forwards;
+  }
+  [data-sysrow][data-pad]:hover {
+    animation: none;
+    transform: translateY(1px) scale(0.985);
+    box-shadow: inset 0 2px 6px rgba(0, 0, 0, 0.14),
+      0 1px 1px rgba(0, 0, 0, 0.04);
+    border-color: rgba(0, 0, 0, 0.28);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .rise-in,
+  .drift-up,
+  .drift-down,
+  .hero-parallax,
+  .marquee-track {
+    animation: none !important;
+    transform: none !important;
+    opacity: 1 !important;
+  }
+  [data-sysrow],
+  [data-sysrow]:hover {
+    animation: none !important;
+    transform: none !important;
+  }
 }
